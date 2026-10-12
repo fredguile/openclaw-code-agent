@@ -302,8 +302,8 @@ describe("OCA plugin workflow integration coverage", () => {
       assert.equal(delegatedRequest.notifyUser, "never");
       assert.equal(delegatedRequest.buttons, undefined);
       assert.match(delegatedRequest.wakeMessage, /You review it \(planApproval: delegate\)/u);
-      assert.match(delegatedRequest.wakeMessage, /agent_output\(session='delegate-plan-session', full=true\)/u);
-      assert.match(delegatedRequest.wakeMessage, /agent_escalate\(session='delegate-plan-session', kind='plan'/u);
+      assert.match(delegatedRequest.wakeMessage, /agent_output\(ocaSessionId='delegate-plan-session', full=true\)/u);
+      assert.match(delegatedRequest.wakeMessage, /agent_escalate\(ocaSessionId='delegate-plan-session', kind='plan'/u);
       assert.match(delegatedRequest.wakeMessage, /approval_rationale/u);
 
       const result = sm.requestPlanApprovalFromUser(
@@ -396,7 +396,7 @@ describe("OCA plugin workflow integration coverage", () => {
         originThreadLine: "originRoute: {\"provider\":\"telegram\",\"target\":\"-100123\",\"threadId\":\"42\"}",
       });
       assert.equal(delegated.notifyUser, "never");
-      assert.match(delegated.wakeMessage ?? "", /agent_output\(session='worktree-decision-session', full=true\)/u);
+      assert.match(delegated.wakeMessage ?? "", /agent_output\(ocaSessionId='worktree-decision-session', full=true\)/u);
       assert.match(delegated.wakeMessage ?? "", /Do not call agent_pr yourself/u);
       assert.match(delegated.wakeMessage ?? "", /originRoute: \{"provider":"telegram"/u);
       assert.match(delegated.wakeMessage ?? "", /PR automation unavailable/u);

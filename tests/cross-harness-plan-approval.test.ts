@@ -267,8 +267,8 @@ for (const name of BACKEND_NAMES) {
       assert.equal(fixture.buttons("plan-approval").length, 0);
       const text = wake.request.wakeMessage ?? "";
       assert.match(text, /Plan v1 ready\..*only after verifying the plan/);
-      assert.match(text, /agent_output\(session='.+', full=true\)/);
-      assert.match(text, /agent_escalate\(session='.+', kind='plan'/);
+      assert.match(text, /agent_output\(ocaSessionId='.+', full=true\)/);
+      assert.match(text, /agent_escalate\(ocaSessionId='.+', kind='plan'/);
       assert.match(text, /approval_rationale/);
 
       await executeRespond(fixture.sm, {

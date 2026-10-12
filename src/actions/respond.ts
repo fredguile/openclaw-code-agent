@@ -141,7 +141,7 @@ function formatResumeUnavailable(
     ? `This session is closed by default. Launch a fresh session, or fork from prior context with agent_launch(resume_session_id='${getSessionRef(session)}', fork_session=true, prompt='<new task>').`
     : reason === "missing_backend_state"
       ? `No resumable backend state is available. Launch a fresh session, or fork from prior context with agent_launch(resume_session_id='${getSessionRef(session)}', fork_session=true, prompt='<new task>').`
-      : `Use agent_respond(session='${getSessionRef(session)}', message='<next instruction>') to continue the running session.`;
+      : `Use agent_respond(ocaSessionId='${getSessionRef(session)}', message='<next instruction>') to continue the running session.`;
   const detailLine = details ? ` ${details}` : "";
   return {
     text: `Resume unavailable for session ${session.name} [${getSessionRef(session)}] (${reason}).${detailLine} ${guidance}`,
@@ -258,7 +258,7 @@ function userOnlyApprovalReason(
   if ((session.planApproval ?? pluginConfig.planApproval) !== "ask") return undefined;
   return [
     `Plan approval for session ${session.name} is reserved for the user (planApproval is "ask"); approve=true from the orchestrator is refused.`,
-    `Wait for the user's Approve button, or forward the user's own reply as text with agent_respond(session='${session.name}', message='<their words, e.g. approve>', userInitiated=true) and without approve=true.`,
+    `Wait for the user's Approve button, or forward the user's own reply as text with agent_respond(ocaSessionId='${session.name}', message='<their words, e.g. approve>', userInitiated=true) and without approve=true.`,
   ].join(" ");
 }
 
@@ -423,13 +423,13 @@ export async function requestPlanDecisionChanges(
   const ref = active?.id ?? persisted?.sessionId ?? sessionId;
   if (options.fromOrchestratorTurn) {
     return {
-      text: `[${name}] Plan v${reviewedVersion ?? "?"} is set for revision. Forward the user's requested change with agent_respond(session='${ref}', message='<their words>', userInitiated=true); if they have not said it yet, ask them.`,
+      text: `[${name}] Plan v${reviewedVersion ?? "?"} is set for revision. Forward the user's requested change with agent_respond(ocaSessionId='${ref}', message='<their words>', userInitiated=true); if they have not said it yet, ask them.`,
     };
   }
   sm.queueOrchestratorContext?.(
     ref,
     "plan-revise-requested",
-    `[${name}] The user asked to revise plan v${reviewedVersion ?? "?"}. Their next message is the requested change: forward it with agent_respond(session='${ref}', message='<their words>', userInitiated=true).`,
+    `[${name}] The user asked to revise plan v${reviewedVersion ?? "?"}. Their next message is the requested change: forward it with agent_respond(ocaSessionId='${ref}', message='<their words>', userInitiated=true).`,
     `plan-revise-requested:${ref}:v${reviewedVersion ?? "?"}`,
   );
 

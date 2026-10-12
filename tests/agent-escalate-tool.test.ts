@@ -18,7 +18,7 @@ describe("agent_escalate tool", () => {
   it("rejects a missing summary or an unknown kind", async () => {
     setSessionManager({} as SessionManager);
     const tool = makeAgentEscalateTool();
-    for (const params of [{ session: "s1", kind: "plan" }, { session: "s1", kind: "merge", summary: "x" }, { session: "s1", kind: "plan", summary: "  " }]) {
+    for (const params of [{ ocaSessionId: "s1", kind: "plan" }, { ocaSessionId: "s1", kind: "merge", summary: "x" }, { ocaSessionId: "s1", kind: "plan", summary: "  " }]) {
       const result = await tool.execute("tool-id", params);
       assert.equal((result as { isError?: boolean }).isError, true);
       assert.match(textOf(result), /Invalid parameters/);
@@ -36,7 +36,7 @@ describe("agent_escalate tool", () => {
     } as unknown as SessionManager);
 
     const result = await makeAgentEscalateTool().execute("tool-id", {
-      session: "s1",
+      ocaSessionId: "s1",
       kind: "plan",
       summary: "Risk: low\nScope: in bounds",
     });
@@ -57,7 +57,7 @@ describe("agent_escalate tool", () => {
     } as unknown as SessionManager);
 
     const result = await makeAgentEscalateTool().execute("tool-id", {
-      session: "s1",
+      ocaSessionId: "s1",
       kind: "worktree",
       summary: "Risk: PR is safer",
     });
@@ -72,7 +72,7 @@ describe("agent_escalate tool", () => {
       resolve: () => ({ id: "s1" }),
       requestPlanApprovalFromUser: () => "Error: Session s1 is not waiting on plan approval.",
     } as unknown as SessionManager);
-    const result = await makeAgentEscalateTool().execute("tool-id", { session: "s1", kind: "plan", summary: "why" });
+    const result = await makeAgentEscalateTool().execute("tool-id", { ocaSessionId: "s1", kind: "plan", summary: "why" });
     assert.equal((result as { isError?: boolean }).isError, true);
   });
 });
