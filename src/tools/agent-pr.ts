@@ -13,6 +13,7 @@ import { buildMergedPatch, buildPrOpenPatch } from "../worktree-session-patches"
 import { formatCount } from "../format";
 import { owedCompletionCycle, patchWorktreeTarget, worktreeDecisionRef, refuseHookChangesWithoutUser, resolveWorktreeToolTarget, summaryOwnership, summaryShownNote, withOutcomeSummary } from "./worktree-tool-context";
 import { createLogger } from "../logger";
+import { coerceBoolean, isBooleanLike } from "./boolean-coercion";
 
 const log = createLogger("agent-pr");
 
@@ -33,7 +34,9 @@ interface AgentPrParams {
 function isAgentPrParams(value: unknown): value is AgentPrParams {
   if (!value || typeof value !== "object") return false;
   const params = value as Record<string, unknown>;
-  return typeof params.session === "string";
+  return typeof params.session === "string"
+    && isBooleanLike(params.update_metadata)
+    && isBooleanLike(params.force_new);
 }
 
 type AgentPrExecuteResult = {
@@ -425,9 +428,9 @@ export function makeAgentPrTool(_ctx?: OpenClawPluginToolContext, options: { met
       session: Type.String({ description: "Session name or ID" }),
       title: Type.Optional(Type.String({ description: "Default: generated" })),
       body: Type.Optional(Type.String({ description: "Default: generated. On an open PR, replaces the body." })),
-      update_metadata: Type.Optional(Type.Boolean({ description: "Open PR: regenerate title and body (default: only OCA-generated ones)" })),
+      update_metadata: Type.Optional(Type.BooleanLike({ description: "Open PR: regenerate title and body (default: only OCA-generated ones)" })),
       base_branch: Type.Optional(Type.String({ description: "Base for a new PR. Default: the session's recorded base (worktree_base_branch at launch), else the detected default branch. An existing PR keeps its own base" })),
-      force_new: Type.Optional(Type.Boolean({ description: "Open a new PR: fail instead of updating an open one; replaces one closed without merging" })),
+      force_new: Type.Optional(Type.BooleanLike({ description: "Open a new PR: fail instead of updating an open one; replaces one closed without merging" })),
       target_repo: Type.Optional(Type.String({ description: "owner/repo for cross-fork PRs (default: the upstream remote, else origin)" })),
       summary: Type.Optional(Type.String({ description: "One or two lines for the user on what changed; shown under the outcome line. Then no follow-up summary is requested from you." })),
     }),
@@ -562,9 +565,10 @@ export function makeAgentPrTool(_ctx?: OpenClawPluginToolContext, options: { met
           meta: { success: false, state: "error" },
         } satisfies AgentPrExecuteResult;
       }
-      const forceNewIgnoresClosedTargetPr = shouldIgnoreClosedTargetPrForForceNew(params.force_new, explicitTargetPrStatus);
+      const coercedForceNew = coerceBoolean(params.force_new);
+      const forceNewIgnoresClosedTargetPr = shouldIgnoreClosedTargetPrForForceNew(coercedForceNew, explicitTargetPrStatus);
       const effectiveTargetPrUrl = forceNewIgnoresClosedTargetPr ? undefined : explicitTargetPrUrl;
-      const discoveredTargetPrStatus = !explicitTargetPrUrl && !params.force_new
+      const discoveredTargetPrStatus = !explicitTargetPrUrl && !coercedForceNew
         ? await discoverExistingTargetPr({
             repoDir: originalWorkdir,
             worktreeBranch: branchName,
@@ -844,7 +848,7 @@ export function makeAgentPrTool(_ctx?: OpenClawPluginToolContext, options: { met
           diffSummary,
           explicitTitle: params.title,
           explicitBody: params.body,
-          forceRefresh: params.update_metadata === true,
+          forceRefresh: coerceBoolean(params.update_metadata) === true,
           metadataProvider,
         });
 

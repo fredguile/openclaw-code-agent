@@ -1,5 +1,6 @@
 import { branchNameValidationError } from "../worktree-ref-validation";
 import { Type } from "../tool-parameter-schema";
+import { coerceBoolean } from "./boolean-coercion";
 import type { OpenClawPluginToolContext } from "../types";
 import { sessionManager } from "../singletons";
 import { deleteBranch, removeWorktree } from "../worktree";
@@ -35,7 +36,7 @@ export function makeAgentWorktreeCleanupTool(_ctx?: OpenClawPluginToolContext) {
         description: "clean_safe (default) removes; preview_safe lists what would be removed; preview_all also lists kept worktrees and why",
       })),
       session: Type.Optional(Type.String({ description: "Only this session" })),
-      dismiss_session: Type.Optional(Type.Boolean({ description: "With session: delete its branch and worktree even if unmerged (cannot be undone)" })),
+      dismiss_session: Type.Optional(Type.BooleanLike({ description: "With session: delete its branch and worktree even if unmerged (cannot be undone)" })),
     }),
     async execute(_id: string, params: unknown) {
       if (!sessionManager) {
@@ -59,7 +60,7 @@ export function makeAgentWorktreeCleanupTool(_ctx?: OpenClawPluginToolContext) {
       const mode = params.mode ?? "clean_safe";
       const dryRun = mode !== "clean_safe";
       const includeRetained = mode === "preview_all" || mode === "clean_safe";
-      if (sessionRef && params.dismiss_session === true) {
+      if (sessionRef && coerceBoolean(params.dismiss_session) === true) {
         const dismissResult = await sessionManager.dismissWorktree(sessionRef);
         return { content: [{ type: "text", text: dismissResult }] };
       }

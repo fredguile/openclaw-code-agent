@@ -1,5 +1,6 @@
 import { Type } from "../tool-parameter-schema";
 import { sessionManager } from "../singletons";
+import { coerceBoolean } from "./boolean-coercion";
 import type { OpenClawPluginToolContext, RepoIntegrationPolicy, RepoPolicyRecord } from "../types";
 import { formatStoredRepoPolicyLine, validateRepoPolicyForPrAvailability } from "../repo-policy";
 import { quoteCommandArg } from "../commands/args";
@@ -67,16 +68,16 @@ export function makeAgentRepoPolicyTool(ctx?: OpenClawPluginToolContext) {
     parameters: Type.Object({
       workdir: Type.Optional(Type.String({ description: "Default: the current workspace. reset also accepts a stored path." })),
       policy: Type.Optional(Type.StringEnum(["pr-required", "pr-allowed", "never-pr", "manual"])),
-      reset: Type.Optional(Type.Boolean()),
-      list: Type.Optional(Type.Boolean({ description: "All stored policies" })),
-      cleanup: Type.Optional(Type.Boolean({ description: "Remove policies of repositories that no longer exist" })),
+      reset: Type.Optional(Type.BooleanLike()),
+      list: Type.Optional(Type.BooleanLike({ description: "All stored policies" })),
+      cleanup: Type.Optional(Type.BooleanLike({ description: "Remove policies of repositories that no longer exist" })),
     }),
     async execute(_id: string, params: AgentRepoPolicyParams | unknown) {
       if (!sessionManager) {
         return { content: [{ type: "text", text: "Error: SessionManager not initialized. The code-agent service must be running." }] };
       }
       const input = params && typeof params === "object" ? params as AgentRepoPolicyParams : {};
-      if (input.cleanup === true) {
+      if (coerceBoolean(input.cleanup) === true) {
         const removed = await sessionManager.cleanupRepoPolicies();
         const text = removed.length === 0
           ? "No stale repo policies found."
@@ -86,7 +87,7 @@ export function makeAgentRepoPolicyTool(ctx?: OpenClawPluginToolContext) {
             ].join("\n");
         return { content: [{ type: "text", text }] };
       }
-      if (input.list === true) {
+      if (coerceBoolean(input.list) === true) {
         const records = sessionManager.listRepoPolicies();
         const text = records.length === 0
           ? "No stored repo policies."
@@ -99,7 +100,7 @@ export function makeAgentRepoPolicyTool(ctx?: OpenClawPluginToolContext) {
         return { content: [{ type: "text", text: "Error: workdir is required when no workspace directory is available." }] };
       }
 
-      if (input.reset === true) {
+      if (coerceBoolean(input.reset) === true) {
         const removed = await sessionManager.resetRepoPolicy(workdir);
         return { content: [{ type: "text", text: formatRepoPolicyReset(workdir, removed) }] };
       }

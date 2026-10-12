@@ -22,6 +22,7 @@ import {
 } from "../worktree";
 import { buildMergedPatch } from "../worktree-session-patches";
 import { captureWorktreeTarget, checkWorktreeTarget, patchWorktreeTarget, owedCompletionCycle, worktreeDecisionRef, refuseHookChangesWithoutUser, resolveWorktreeToolTarget, summaryOwnership, summaryShownNote, withOutcomeSummary } from "./worktree-tool-context";
+import { coerceBoolean, isBooleanLike } from "./boolean-coercion";
 import { createLogger } from "../logger";
 
 const log = createLogger("agent-merge");
@@ -41,7 +42,8 @@ function isAgentMergeParams(value: unknown): value is AgentMergeParams {
   return typeof params.session === "string"
     && (params.base_branch === undefined || typeof params.base_branch === "string")
     && (params.strategy === undefined || params.strategy === "merge" || params.strategy === "squash")
-    && ["push", "delete_branch"].every((key) => params[key] === undefined || typeof params[key] === "boolean")
+    && isBooleanLike(params.push)
+    && isBooleanLike(params.delete_branch)
     && (params.summary === undefined || typeof params.summary === "string");
 }
 
@@ -140,8 +142,8 @@ export function makeAgentMergeTool(_ctx?: OpenClawPluginToolContext) {
           description: "merge (default): rebase onto base, then fast-forward. squash: one commit.",
         }),
       ),
-      push: Type.Optional(Type.Boolean({ description: "Push the base branch afterwards (default false)" })),
-      delete_branch: Type.Optional(Type.Boolean({ description: "Default true" })),
+      push: Type.Optional(Type.BooleanLike({ description: "Push the base branch afterwards (default false)" })),
+      delete_branch: Type.Optional(Type.BooleanLike({ description: "Default true" })),
       summary: Type.Optional(Type.String({ description: "One or two lines for the user on what changed; shown under the outcome line. Then no follow-up summary is requested from you." })),
     }),
     async execute(_id: string, params: unknown) {
@@ -196,8 +198,8 @@ export function makeAgentMergeTool(_ctx?: OpenClawPluginToolContext) {
       const resolvedBaseBranch = await resolveLandingBaseBranch(baseSource, effectiveWorkdir, params.base_branch);
       const baseBranch = resolvedBaseBranch;
       const strategy = params.strategy ?? "merge";
-      const shouldPush = params.push === true; // Default false
-      const shouldCleanup = params.delete_branch !== false; // Default true
+      const shouldPush = coerceBoolean(params.push) === true; // Default false
+      const shouldCleanup = coerceBoolean(params.delete_branch) !== false; // Default true
       const repoPolicy = await sm.resolveRepoPolicy(effectiveWorkdir);
       if (repoPolicy?.policy === "pr-required") {
         return {

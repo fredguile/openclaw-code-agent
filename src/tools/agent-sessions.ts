@@ -1,6 +1,7 @@
 import { Type } from "../tool-parameter-schema";
 import { sessionManager } from "../singletons";
 import { resolveAgentChannel } from "../config";
+import { coerceBoolean } from "./boolean-coercion";
 import type { OpenClawPluginToolContext } from "../types";
 import { getSessionsListingText } from "../application/session-view";
 
@@ -39,7 +40,7 @@ export function makeAgentSessionsTool(ctx?: OpenClawPluginToolContext) {
         ),
       ),
       full: Type.Optional(
-        Type.Boolean(),
+        Type.BooleanLike(),
       ),
     }),
     async execute(_id: string, params: AgentSessionsParams | unknown) {
@@ -49,7 +50,7 @@ export function makeAgentSessionsTool(ctx?: OpenClawPluginToolContext) {
 
       const filter = parseStatus(params);
       const originChannel = ctx?.workspaceDir ? resolveAgentChannel(ctx.workspaceDir) : undefined;
-      const full = !!(params && typeof params === "object" && (params as Record<string, unknown>).full === true);
+      const full = !!(params && typeof params === "object") && coerceBoolean((params as Record<string, unknown>).full) === true;
       const text = getSessionsListingText(sessionManager, filter, originChannel, { full });
       return { content: [{ type: "text", text }] };
     },

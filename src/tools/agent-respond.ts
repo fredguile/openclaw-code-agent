@@ -2,6 +2,7 @@ import { sessionToolError, unknownSessionError } from "./session-tool-error";
 import { Type } from "../tool-parameter-schema";
 import { sessionManager } from "../singletons";
 import { executeRespond } from "../actions/respond";
+import { coerceBoolean, isBooleanLike } from "./boolean-coercion";
 import type { OpenClawPluginToolContext } from "../types";
 
 interface AgentRespondParams {
@@ -18,7 +19,9 @@ function isAgentRespondParams(value: unknown): value is AgentRespondParams {
   const params = value as Record<string, unknown>;
   return typeof params.session === "string"
     && typeof params.message === "string"
-    && ["interrupt", "userInitiated", "approve"].every((key) => params[key] === undefined || typeof params[key] === "boolean")
+    && isBooleanLike(params.interrupt)
+    && isBooleanLike(params.userInitiated)
+    && isBooleanLike(params.approve)
     && (params.approval_rationale === undefined || typeof params.approval_rationale === "string");
 }
 
@@ -31,12 +34,12 @@ export function makeAgentRespondTool(_ctx?: OpenClawPluginToolContext) {
     parameters: Type.Object({
       session: Type.String({ description: "Session name or ID" }),
       message: Type.String(),
-      interrupt: Type.Optional(Type.Boolean({ description: "Stop the current turn first" })),
+      interrupt: Type.Optional(Type.BooleanLike({ description: "Stop the current turn first" })),
       userInitiated: Type.Optional(
-        Type.Boolean({ description: "true when forwarding the user's own words. Forward each user message whole, in one call. For a pending plan, a message that is only 'approve', 'reject' or 'revise' decides it; any other message (including 'revise …' with the changes) is one revision with that feedback." }),
+        Type.BooleanLike({ description: "true when forwarding the user's own words. Forward each user message whole, in one call. For a pending plan, a message that is only 'approve', 'reject' or 'revise' decides it; any other message (including 'revise …' with the changes) is one revision with that feedback." }),
       ),
       approve: Type.Optional(
-        Type.Boolean({ description: "Approve the pending plan (delegate/approve modes). Refused when planApproval is 'ask': only the user approves there. On a default-mode session: switch to bypassPermissions." }),
+        Type.BooleanLike({ description: "Approve the pending plan (delegate/approve modes). Refused when planApproval is 'ask': only the user approves there. On a default-mode session: switch to bypassPermissions." }),
       ),
       approval_rationale: Type.Optional(
         Type.String({ description: "With approve=true: one short line on why the plan is safe; shown to the user in the approval notice" }),
@@ -53,9 +56,9 @@ export function makeAgentRespondTool(_ctx?: OpenClawPluginToolContext) {
       const result = await executeRespond(sessionManager, {
         session: params.session,
         message: params.message,
-        interrupt: params.interrupt,
-        userInitiated: params.userInitiated,
-        approve: params.approve,
+        interrupt: coerceBoolean(params.interrupt),
+        userInitiated: coerceBoolean(params.userInitiated),
+        approve: coerceBoolean(params.approve),
         approvalRationale: params.approval_rationale,
         fromOrchestratorTurn: true,
       });

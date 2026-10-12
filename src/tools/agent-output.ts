@@ -1,6 +1,7 @@
 import { sessionToolError, unknownSessionError } from "./session-tool-error";
 import { Type } from "../tool-parameter-schema";
 import { sessionManager } from "../singletons";
+import { coerceBoolean, isBooleanLike } from "./boolean-coercion";
 import type { OpenClawPluginToolContext } from "../types";
 import { getSessionOutputText } from "../application/session-view";
 
@@ -15,7 +16,7 @@ function isAgentOutputParams(value: unknown): value is AgentOutputParams {
   const params = value as Record<string, unknown>;
   return typeof params.session === "string"
     && (params.lines === undefined || typeof params.lines === "number")
-    && (params.full === undefined || typeof params.full === "boolean");
+    && isBooleanLike(params.full);
 }
 
 /** Register the `agent_output` tool factory. */
@@ -26,7 +27,7 @@ export function makeAgentOutputTool(ctx?: OpenClawPluginToolContext) {
     parameters: Type.Object({
       session: Type.String({ description: "Session name or ID" }),
       lines: Type.Optional(Type.Number({ description: "Default 50" })),
-      full: Type.Optional(Type.Boolean()),
+      full: Type.Optional(Type.BooleanLike()),
     }),
     async execute(_id: string, params: unknown) {
       if (!sessionManager) {
@@ -40,7 +41,7 @@ export function makeAgentOutputTool(ctx?: OpenClawPluginToolContext) {
         return unknownSessionError(params.session);
       }
       const text = getSessionOutputText(sm, params.session, {
-        full: params.full,
+        full: coerceBoolean(params.full),
         lines: params.lines,
         readerSessionKey: ctx?.sessionKey || undefined,
       });

@@ -15,6 +15,7 @@ import {
 } from "./agent-launch-resolution";
 import { buildResumedPlanState } from "../plan-decision-state";
 import { createLogger } from "../logger";
+import { coerceBoolean } from "./boolean-coercion";
 import { awaitLaunchEarlyOutcome, launchHandoffNote } from "./launch-early-outcome";
 
 const log = createLogger("agent-launch");
@@ -112,11 +113,11 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
       system_prompt: Type.Optional(Type.String({ description: "Extra system prompt" })),
       allowed_tools: Type.Optional(Type.Array(Type.String())),
       resume_session_id: Type.Optional(Type.String({ description: "Session to continue (or fork with fork_session=true)" })),
-      fork_session: Type.Optional(Type.Boolean({ description: "With resume_session_id: start a new session from its context" })),
+      fork_session: Type.Optional(Type.BooleanLike({ description: "With resume_session_id: start a new session from its context" })),
       rewind_turns: Type.Optional(
         Type.Number({ minimum: 1, description: "With resume_session_id: drop the last N turns first (Codex, Claude Code; OpenCode only with fork_session=true, which keeps the original). Files are not reverted." }),
       ),
-      force_new_session: Type.Optional(Type.Boolean({ description: "Start a new session even if a linked one could be resumed" })),
+      force_new_session: Type.Optional(Type.BooleanLike({ description: "Start a new session even if a linked one could be resumed" })),
       permission_mode: Type.Optional(
         Type.StringEnum(["default", "plan", "bypassPermissions"],
           { description: "'plan': the agent plans first; work starts after approval. 'default': no plan gate; the harness's own permission rules apply (Claude Code allows tools, Codex follows its sandbox settings, OpenCode asks). 'bypassPermissions': no gate, no prompts. Default: plugin config (plan)." },
@@ -183,7 +184,7 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
         const resumeTarget = params.resume_session_id
           ? sessionManager.resolve(params.resume_session_id) ?? sessionManager.getPersistedSession(params.resume_session_id)
           : undefined;
-        const resumeAssessment = (!params.fork_session && resumeTarget)
+        const resumeAssessment = (!coerceBoolean(params.fork_session) && resumeTarget)
           ? assessResumeCandidate(resumeTarget)
           : undefined;
 
@@ -207,19 +208,19 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
         const persistedResumeIdentity = resumeTarget && "resumedFromSessionName" in resumeTarget
           ? resumeTarget.resumedFromSessionName
           : undefined;
-        const resumedFromSessionName = resumeAssessment?.kind === "resume" && !params.fork_session
+        const resumedFromSessionName = resumeAssessment?.kind === "resume" && !coerceBoolean(params.fork_session)
           ? persistedResumeIdentity ?? resumeTarget?.name
           : undefined;
         const launchName = resumedFromSessionName && !params.name
           ? resumedFromSessionName
           : params.name;
         const launchWorktreeStrategy = params.worktree_strategy ?? pluginConfig.defaultWorktreeStrategy ?? "off";
-        const launchSessionIdOverride = !params.fork_session
+        const launchSessionIdOverride = !coerceBoolean(params.fork_session)
           ? (resumeAssessment?.kind === "resume" || resumeAssessment?.kind === "relaunch"
             ? resumeAssessment.stableSessionId
             : undefined)
           : undefined;
-        const resumedPlanState = resumeAssessment?.kind === "resume" && !params.fork_session && resumeTarget
+        const resumedPlanState = resumeAssessment?.kind === "resume" && !coerceBoolean(params.fork_session) && resumeTarget
           ? buildResumedPlanState(resumeTarget, permissionMode)
           : { permissionMode, approvalApplied: false, patch: {} };
         if (launchWorktreeStrategy !== "off" && hasRequestRepoPolicyForLaunch(sessionManager)) {
@@ -243,7 +244,7 @@ export function makeAgentLaunchTool(ctx: OpenClawPluginToolContext) {
                   resumeWorktreeFrom: launchSessionIdOverride ?? params.resume_session_id ?? resolvedResumeId,
                   sessionIdOverride: launchSessionIdOverride,
                   rewindTurns,
-                  forkSession: resumeSessionId ? params.fork_session : false,
+                  forkSession: resumeSessionId ? coerceBoolean(params.fork_session) : false,
                   forceNewSession: params.force_new_session,
                   permissionMode,
                   planApproval,
